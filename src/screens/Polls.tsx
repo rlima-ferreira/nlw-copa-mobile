@@ -1,12 +1,42 @@
 import { Octicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
-import { Icon, VStack } from 'native-base';
-import React from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { FlatList, Icon, useToast, VStack } from 'native-base';
+import React, { useCallback, useState } from 'react';
 import { Button } from '../components/Button';
+import { EmptyPoolList } from '../components/EmptyPoolList';
 import { Header } from '../components/Header';
+import { Loading } from '../components/Loading';
+import { IPoolCardProps, PoolCard } from '../components/PoolCard';
+import api from '../services/api';
 
 export default function Polls() {
   const { navigate } = useNavigation();
+  const toast = useToast();
+  const [isLoading, setIsLoading] = useState(true);
+  const [polls, setPolls] = useState<IPoolCardProps[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      findPolls();
+    }, [])
+  );
+
+  async function findPolls() {
+    try {
+      setIsLoading(true);
+      const { data } = await api.get('/polls');
+      setPolls(data);
+    } catch (err) {
+      console.log(err);
+      toast.show({
+        title: err.message,
+        placement: 'top',
+        bg: 'red.500',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <VStack flex={1} bgColor="gray.900">
@@ -27,6 +57,24 @@ export default function Polls() {
           onPress={() => navigate('find')}
         />
       </VStack>
+      {isLoading ? (
+        <Loading />
+      ) : (
+        <FlatList
+          data={polls}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <PoolCard
+              data={item}
+              onPress={() => navigate('details', { id: item.id })}
+            />
+          )}
+          px={5}
+          showsVerticalScrollIndicator={false}
+          _contentContainerStyle={{ pb: 10 }}
+          ListEmptyComponent={<EmptyPoolList />}
+        />
+      )}
     </VStack>
   );
 }
